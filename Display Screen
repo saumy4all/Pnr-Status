@@ -1,0 +1,342 @@
+package com.example.railpnr;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import android.net.Uri;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.app.Activity;
+import android.content.Intent;
+import android.text.InputFilter.LengthFilter;
+import android.view.Menu;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+public class DisplayScreen extends Activity 
+{
+	TextView display;
+	String pnr,train,counter,hmacKey;
+	String pubKey="811eaa3d7c49c7effb2a2d721e475176";
+	String privKey="2436f92ae6a8a21bc3335bb0ac8c9ce1";
+	StringBuilder output;
+	@Override
+	protected void onCreate(Bundle savedInstanceState)
+	{
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_display_screen);
+		((ScrollView) findViewById(R.id.SCROLLER_ID)).fullScroll(View.FOCUS_DOWN);
+		counter=getIntent().getStringExtra("counter").toString();
+		display=(TextView)findViewById(R.id.display);
+		output=new StringBuilder();
+	    if(counter.equalsIgnoreCase("1"))//For PNR status
+	    {
+	    	pnr=getIntent().getStringExtra("pnr");
+	    	try
+	        	{
+	        		hmacKey=hmacSha1("json"+pubKey+pnr, privKey);
+	           	}catch(Exception e){}
+	        new ReadJSONFeedTask().execute("http://railpnrapi.com/api/check_pnr/pnr/"+pnr+"/format/json/pbapikey/811eaa3d7c49c7effb2a2d721e475176/pbapisign/"+hmacKey);
+	    }
+	    if(counter.equalsIgnoreCase("2"))//For train schedule
+	    {
+	    	train=getIntent().getStringExtra("train");
+	    	try
+	        	{
+	        		hmacKey=hmacSha1("json"+pubKey+train, privKey);
+	         	}catch(Exception e){}
+	        new ReadJSONFeedTask().execute("http://railpnrapi.com/api/route/train/"+train+"/format/json/pbapikey/811eaa3d7c49c7effb2a2d721e475176/pbapisign/"+hmacKey);
+	    }
+	    if(counter.equalsIgnoreCase("3"))//for seat availability
+	    {
+	       	try
+	    	{
+	       		String edin1=getIntent().getStringExtra("edin1");
+	       		String edin2=getIntent().getStringExtra("edin2");
+	       		String trnnumBer=getIntent().getStringExtra("trnnumBer");
+	       		String CLass=getIntent().getStringExtra("class");
+	       		String quota=getIntent().getStringExtra("quota");
+	       		String mydate=getIntent().getStringExtra("mydate");
+	  
+	       		new ReadJSONFeedTask().execute("http://railpnrapi.com/api/check_avail/tnum/"+trnnumBer+"/fscode/"+edin1+"/tscode/"+edin2+"/date/"+mydate+"/class/"+CLass+"/quota/"+quota+"/format/json/pbapikey/"+pubKey+"/pbapisign/"+hmacSha1(CLass.toLowerCase()+mydate+"json"+edin1.toLowerCase()+pubKey+quota.toLowerCase()+trnnumBer+edin2.toLowerCase(), privKey));
+	       		
+	    	}catch(Exception e){Toast.makeText(getApplicationContext(), "Hmac Failiure", Toast.LENGTH_SHORT).show();}
+	    }
+	    if(counter.equalsIgnoreCase("4"))
+	    {
+	    	try
+	    	{
+	       		String mydate=getIntent().getStringExtra("mydate");
+	    		String edin1=getIntent().getStringExtra("edin1");
+	       		String edin2=getIntent().getStringExtra("edin2");
+
+	       		new ReadJSONFeedTask().execute("http://railpnrapi.com/api/trains_between_stations/fscode/"+edin1+"/tscode/"+edin2+"/date/"+mydate+"/orderby/time/format/json/pbapikey/"+pubKey+"/pbapisign/"+hmacSha1(mydate+"json"+edin1.toLowerCase()+"time"+pubKey+edin2.toLowerCase(), privKey));
+	       		
+	    	}catch(Exception e){}
+	    }
+	}
+	class ReadJSONFeedTask extends AsyncTask<String, Void, String>
+    {	
+    	int passagNum;
+    	JSONObject reader;
+    	@Override
+    	protected String doInBackground(String... urls) 
+    	{
+    		return xyz(urls[0]);//passes the argument to function xyz and returns it to post execute
+    	}
+    	protected void onPostExecute(String result)
+    	{
+    		try 
+    		{
+    			if(counter.equalsIgnoreCase("1"))//for PNR
+    			{
+    				reader = new JSONObject(result);//Making the object of the string
+								
+					String pNum=reader.getString("pnr");
+					String tNum=reader.getString("train_num");
+					String tName=reader.getString("train_name");
+					String tDOJ=reader.getString("doj");
+					String fRom=reader.getJSONObject("from_station").getString("name");
+					String tO=reader.getJSONObject("to_station").getString("name");
+					passagNum=reader.getInt("no_of_passengers");
+					String cLas=reader.getString("class");
+					
+					output.append("PNR : "+pNum+
+							"\nTrain No : "+tNum+
+							"\nTrain Name : "+tName+
+							"\nDate : "+tDOJ+
+							"\nFrom : "+fRom+"\nTo : "+tO+
+							"\nClass :"+cLas+"\nPassengers : "+passagNum+
+							"\n\nPassenger Deatails :\n  SR.     SEAT     STATUS\n"+
+							passageDetails()
+							);
+							
+    			}
+    			if(counter.equalsIgnoreCase("2"))//for train enquary
+    			{
+    				reader = new JSONObject(result);
+    				
+    				String tNum=reader.getJSONObject("train").getString("number");
+					String tName=reader.getJSONObject("train").getString("name");
+					String tDays="\nDay : ";
+					for(int i=0;i<7;i++)
+					{
+							tDays+=reader.getJSONObject("train").getJSONArray("days").getJSONObject(i).getString("day-code")+" ";
+					}
+					String tRun="\nRun :   ";
+					for(int i=0;i<7;i++)
+					{
+							tRun+=reader.getJSONObject("train").getJSONArray("days").getJSONObject(i).getString("runs")+"      ";
+					}
+					JSONArray ary=reader.getJSONObject("train").getJSONArray("classes");
+					String cLAs="\nClass : ";
+					for(int i=0;i<ary.length();i++)
+					{
+						if((reader.getJSONObject("train").getJSONArray("classes").getJSONObject(i).getString("available")).equalsIgnoreCase("Y"))
+						{	
+							cLAs+=reader.getJSONObject("train").getJSONArray("classes").getJSONObject(i).getString("class-code")+",";
+						}
+					}
+					String route="\n";
+					JSONArray ary1=reader.getJSONObject("train").getJSONArray("route");
+					
+					for(int i=0;i<ary1.length();i++)
+					{
+						String tNAME=reader.getJSONObject("train").getJSONArray("route").getJSONObject(i).getJSONObject("station").getString("name");
+						String aTime=reader.getJSONObject("train").getJSONArray("route").getJSONObject(i).getString("arrival_time")+" Hrs";
+						String dTime=reader.getJSONObject("train").getJSONArray("route").getJSONObject(i).getString("departure_time")+" Hrs";
+						String dIstance=reader.getJSONObject("train").getJSONArray("route").getJSONObject(i).getString("distance");
+
+						route+=(i+1)+".    "+tNAME+"/"+aTime+"/"+dTime+"/"+dIstance+"\n";
+						
+					}
+					
+					output.append("Train No : "+tNum+"\nName : "+tName+tDays+tRun
+							+cLAs+"\n\nSR.   STATION/ARRIVAL/DEPARTURE/DISTANCE"+route
+							);
+					
+    			}
+    			if(counter.equalsIgnoreCase("3"))// from station code
+				{
+    				reader = new JSONObject(result);
+    				String tNum=reader.getJSONObject("availability").getString("train_number");
+    				String tName=reader.getJSONObject("availability").getString("train_name");
+    				String Doj=reader.getJSONObject("availability").getString("date_of_journey");
+    				String fRom=reader.getJSONObject("availability").getJSONObject("from").getString("name");
+					String tO=reader.getJSONObject("availability").getJSONObject("to").getString("name");
+					String clASS=reader.getJSONObject("availability").getJSONObject("class").getString("class_name");
+					String qUOtA=reader.getJSONObject("availability").getJSONObject("quota").getString("quota_name");
+					int lngt=reader.getJSONObject("availability").getJSONArray("availability_status").length();
+					String seatStat="";
+					for(int i=0;i<lngt;i++)
+					{
+						String dat=reader.getJSONObject("availability").getJSONArray("availability_status").getJSONObject(i).getString("date");
+						String stat=reader.getJSONObject("availability").getJSONArray("availability_status").getJSONObject(i).getString("status");
+						seatStat+=(i+1)+".    "+dat+"     "+stat+"\n";
+					}
+					
+					output.append("Train No : "+tNum+"\nName : "+tName+
+							"\nDate Of Journey : "+Doj+"\nFrom : "+fRom+"\nTo : "+tO+"\nClass : "+clASS+
+							"\nQuota : "+qUOtA+"\n\nAvailability Satatus :-\nSR      DATE                STATUS\n"+seatStat);
+				}
+    			if(counter.equals("4"))
+    			{
+    				reader = new JSONObject(result);
+    				String frOM=reader.getJSONObject("from_station").getString("name");
+    				String tO=reader.getJSONObject("to_station").getString("name");
+    				int lnGth=reader.getJSONArray("trains").length();
+    				String tRainS="";
+    				for(int i=0;i<lnGth;i++)
+    				{
+    					String tNAM=reader.getJSONArray("trains").getJSONObject(i).getString("name");
+    					String tNUM=reader.getJSONArray("trains").getJSONObject(i).getString("number");
+    					String tARI1=reader.getJSONArray("trains").getJSONObject(i).getString("src_arrival_time");
+    					String tDEP1=reader.getJSONArray("trains").getJSONObject(i).getString("src_departure_time");
+    					String tARI2=reader.getJSONArray("trains").getJSONObject(i).getString("dest_arrival_time");
+    					String tDEP2=reader.getJSONArray("trains").getJSONObject(i).getString("dest_departure_time");
+    					String runDay="";
+    					for(int in=0;in<7;in++)
+    					{
+    						if((reader.getJSONArray("trains").getJSONObject(i).getJSONArray("days").getJSONObject(in).getString("runs")).equalsIgnoreCase("Y"))
+    						{
+    							String dy=reader.getJSONArray("trains").getJSONObject(i).getJSONArray("days").getJSONObject(in).getString("day-code");
+    							runDay+=dy+" ";
+    					
+    						}
+    					}
+    					String availCoach="";
+    					for(int in=0;in<reader.getJSONArray("trains").getJSONObject(i).getJSONArray("classes").length();in++)
+    					{
+    						if((reader.getJSONArray("trains").getJSONObject(i).getJSONArray("classes").getJSONObject(in).getString("available")).equalsIgnoreCase("Y"))
+    						{
+    							String dy=reader.getJSONArray("trains").getJSONObject(i).getJSONArray("classes").getJSONObject(in).getString("class-code");
+    							availCoach+=dy+" ";
+    					
+    						}
+    					}
+    					tRainS+=(i+1)+".\n    Name: "+tNAM+"     No: "+tNUM+"\n    Source Station:\n    Arrival: "+
+    							tARI1+"   Departure: "+tDEP1+"\n    Destination Station:\n    Arrival: "+tARI2+"   Departure: "+tDEP2+
+    							"\n    Running On : "+runDay+"\n    Available Coaches : "+availCoach+"\n\n";
+    				}
+    				
+    				
+    				output.append("From : "+frOM+"\nTo : "+tO+"\n\nTrains :-\n"+tRainS);
+    			}
+    			display.setText(output.toString());
+			}
+    		catch(Exception e)
+    		{
+    			display.setText("\n\n\n\n\n			WRONG INPUT !!!");
+    			
+    			Toast.makeText(getApplicationContext(), "post failed", Toast.LENGTH_LONG).show();
+    		}
+    	}
+    	
+    	
+    	
+    	
+    	public String passageDetails()//gets passenger details for PNR
+    	{
+    		String abc="";
+    		String sr,seat,status;
+    		try
+    		{
+    		  		JSONArray cast = reader.getJSONArray("passengers");//getting the Json Array
+    		  		for(int i=0;i<passagNum;i++)
+    		  		{
+    		  			sr=cast.getJSONObject(i).getString("sr");
+    		  			seat=cast.getJSONObject(i).getString("booking_status");
+    		  			status=cast.getJSONObject(i).getString("current_status");
+    					abc+="  "+sr+".    "+seat+"     "+status+"\n";
+    		  		}
+    		}catch(Exception e){}
+    		return abc;
+    	}
+    }
+	
+	
+	
+	
+     String hmacSha1(String value, String key)
+    	    throws UnsupportedEncodingException, NoSuchAlgorithmException,InvalidKeyException 
+    	    {
+    	        String type = "HmacSHA1";
+    	        SecretKeySpec secret = new SecretKeySpec(key.getBytes(), type);
+    	        Mac mac = Mac.getInstance(type);
+    	        mac.init(secret);
+    	        byte[] bytes = mac.doFinal(value.getBytes());
+    	        return bytesToHex(bytes);
+    	    }
+
+    	    private final static char[] hexArray = "0123456789abcdef".toCharArray();
+
+    	    private static String bytesToHex(byte[] bytes) 
+    	    {
+    	        char[] hexChars = new char[bytes.length * 2];
+    	        int v;
+    	        for (int j = 0; j < bytes.length; j++) 
+    	        {
+    	            v = bytes[j] & 0xFF;
+    	            hexChars[j * 2] = hexArray[v >>> 4];
+    	            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+    	        }
+    	        return new String(hexChars);
+    	    }
+    	    public String xyz(String URL)  // converting the json to string
+    	    {
+    	    	StringBuilder stringbuilder=new StringBuilder();
+    	    	HttpClient client=new DefaultHttpClient();  //Interface for an HTTP client
+    	    	HttpGet httpget=new HttpGet(URL);// gets the url
+    	    	try
+    	    	{
+    	    		HttpResponse response=client.execute(httpget);//gets the response from the url
+    	    		StatusLine statusline=response.getStatusLine();//gets the status line
+    	    		int statuscode=statusline.getStatusCode();// gets the status code from status line
+    	    		if(statuscode==200)//means the status is ok
+    	    		{
+    	    			HttpEntity entity=response.getEntity();// gets the entity from the response generated from url
+    	    			InputStream content=entity.getContent();// gets the content in that response
+    	    			BufferedReader reader=new BufferedReader(new InputStreamReader(content));
+    	    			String line;
+    	    			while((line=reader.readLine())!=null)// reads line until there is none to display
+    	    			{
+    	    				stringbuilder.append(line);
+    	    			}
+    	    			
+    	    		}
+    	    		if(statuscode==503)
+    	    		{
+    	    			Toast.makeText(getApplicationContext(), "Server Busy !!", Toast.LENGTH_LONG).show();
+    	    		}
+    	    		if(statuscode==500)
+    	    		{
+    	    			Toast.makeText(getApplicationContext(), "Server Busy,Try after sm time !!", Toast.LENGTH_LONG).show();
+    	    			display.setText("!!WTF!!");
+    	    		}
+    	    	}
+    	    	catch(Exception e)
+    	    	{
+    	    		Toast.makeText(getApplicationContext(), "XYZ failiure", Toast.LENGTH_LONG).show();
+    	    	}
+    	    	return stringbuilder.toString();
+    	    }
+}

@@ -1,0 +1,67 @@
+package com.example.railpnr;
+
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.Bundle;
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.view.Menu;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+public class JsonCheck extends Activity implements OnClickListener
+{
+	EditText pnrj;
+	//Context context;
+	boolean netCheck;
+	Intent i;
+	//public JsonCheck
+	@Override
+	protected void onCreate(Bundle savedInstanceState) 
+	{
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_json_check);
+		pnrj=(EditText)findViewById(R.id.jpnr);
+
+		((Button)findViewById(R.id.go1)).setOnClickListener(this);
+	}
+	@Override
+	public void onClick(View v) 
+	{
+		EveryFunC obj=new EveryFunC();
+		if((getIntent().getStringExtra("off")).equals("00"))
+		{
+			netCheck=obj.abcd(getApplicationContext());
+			if(pnrj.getText().toString().length()==10 && netCheck)
+			{
+				i=new Intent(getApplicationContext(), DisplayScreen.class);
+				i.putExtra("pnr",pnrj.getText().toString());
+				i.putExtra("counter", "1");
+				startActivity(i);
+			}
+			else if(!netCheck)
+			{
+				   Toast.makeText(getApplicationContext(), "No Internet Connection", Toast.LENGTH_LONG).show();
+			}
+			else
+			{
+				Toast.makeText(getApplicationContext(), "Enter a valid 10 Digit PNR", Toast.LENGTH_SHORT).show();
+			}
+		}
+		if((getIntent().getStringExtra("off")).equals("22"))
+		{
+			if(pnrj.getText().length()==10)
+			{
+				obj.broadcastsms("139", "TRNSH "+pnrj.getText().toString(),getApplicationContext());
+			}
+			else
+			{
+				Toast.makeText(getApplicationContext(), "Enter a valid 10 Digit PNR", Toast.LENGTH_SHORT).show();
+			}
+		}
+	}
+}
