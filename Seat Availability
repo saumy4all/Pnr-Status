@@ -1,0 +1,244 @@
+package com.example.railpnr;
+
+import com.example.railpnr.DisplayScreen.ReadJSONFeedTask;
+
+import android.os.Bundle;
+import android.app.ActionBar;
+import android.app.Activity;
+import android.content.Intent;
+import android.view.Menu;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ProgressBar;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.Toast;
+
+public class StationAvailability extends Activity implements OnClickListener,OnItemSelectedListener
+{
+	String trnnumBer="",myDate="",edin1="",edin2="";
+	EditText dAtE;
+	boolean validatecheck;
+	ArrayAdapter<String> qta,cLs,fcode,tcode,trainN;
+	String[] cLaSs={" -SELECT-","1A","2A","3A","3E","SL","CC","2S","FC"};
+	String[] qUoTa={" -SELECT-","GN-General","CK-Tatkal","LD-Ladies","DF-Defence","FT-Foreign Tourist","DP-Duty Pass ","HP-Physically Handicapped","PH-Parliament house","SS-Senior Citizen","YU-Yuva"};
+	Spinner spQuota,spClass;
+	Button btn2;
+	AutoCompleteTextView fscode,tscode,trnNum;
+	ProgressBar pbar;
+	int ctr=0;
+	EveryString ev;
+	String q1="",c1="",fTrainCode[]={};
+	@Override
+	protected void onCreate(Bundle savedInstanceState) 
+	{
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_station_availability);
+		fscode=(AutoCompleteTextView)findViewById(R.id.fsCode);
+		tscode=(AutoCompleteTextView)findViewById(R.id.tsCode);
+		trnNum=(AutoCompleteTextView)findViewById(R.id.trnNum1);
+		ActionBar act=getActionBar();
+		act.setTitle("Seat Availability");
+		dAtE=(EditText)findViewById(R.id.dateT1);
+		btn2=(Button)findViewById(R.id.search);
+		btn2.setOnClickListener(this);
+		spQuota=(Spinner)findViewById(R.id.spinner2);
+		spClass=(Spinner)findViewById(R.id.spinner1);
+		spQuota.setOnItemSelectedListener(this);
+		spClass.setOnItemSelectedListener(this);
+		qta=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,qUoTa );
+        qta.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spQuota.setAdapter(qta);
+        cLs=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,cLaSs );
+        cLs.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spClass.setAdapter(cLs);
+        EveryString ev=new EveryString();
+        fcode=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,ev.stationCodes );
+        trainN=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,ev.trainNums );
+        trnNum.setAdapter(trainN);
+        fscode.setAdapter(fcode);
+        tscode.setAdapter(fcode);
+        trnNum.setThreshold(1);
+        fscode.setThreshold(1);
+        tscode.setThreshold(1);
+        if((getIntent().getStringExtra("ID").equals("2")))
+		{
+			spQuota.setVisibility(View.INVISIBLE);
+			spClass.setVisibility(View.INVISIBLE);
+			trnNum.setVisibility(View.GONE);
+			act.setTitle("Trains b/w stations");
+
+			((TextView)findViewById(R.id.textView1)).setVisibility(View.GONE);
+			((TextView)findViewById(R.id.textView5)).setVisibility(View.GONE);
+			((TextView)findViewById(R.id.textView6)).setVisibility(View.GONE);
+			
+		}
+        
+		
+	}
+	@Override
+	public void onClick(View v) 
+	{
+		EveryFunC obj=new EveryFunC();
+		if(obj.abcd(getApplicationContext()))
+		{
+			myDate=dAtE.getText().toString();//date
+			String ch1="",ch2="",code1="",code2="",edin1="",edin2="";
+			if((getIntent().getStringExtra("ID").equals("1")))
+			{
+				if((trnNum.getText().toString().length()==4 || trnNum.getText().toString().length()==5) && myDate.charAt(2)=='-' && myDate.charAt(5)=='-' && validatecheck )
+				{
+					String abc=trnNum.getText().toString();
+					for(int i=0;i<5;i++)
+					{
+						trnnumBer+=String.valueOf(abc.charAt(i));
+					}
+				//for from station
+					ch1=fscode.getText().toString();
+					for(int i=(ch1.length()-1);i>=0;i--)
+					{
+						if(ch1.charAt(i)!=' ')
+						{
+							code1+=String.valueOf(ch1.charAt(i));
+						}
+						else
+						{
+							break;
+						}
+					}
+					for(int i=(code1.length()-1);i>=0;i--)
+					{
+						edin1+=code1.charAt(i);
+					}
+				
+			
+				//for to station
+					ch2=tscode.getText().toString();
+					for(int i=(ch2.length()-1);i>=0;i--)
+					{
+						if(ch2.charAt(i)!=' ')
+						{
+							code2+=String.valueOf(ch2.charAt(i));
+						}
+						else
+						{break;}
+					}
+					for(int i=(code2.length()-1);i>=0;i--)
+					{
+						edin2+=code2.charAt(i);
+					}
+					
+			
+					Intent i=new Intent(getApplicationContext(), DisplayScreen.class);
+					i.putExtra("counter","3");
+					i.putExtra("trnnumBer", trnnumBer);
+					i.putExtra("edin1", edin1.toUpperCase());
+					i.putExtra("edin2", edin2.toUpperCase());
+					i.putExtra("quota", q1);
+					i.putExtra("class", c1);
+					i.putExtra("mydate", myDate);
+					startActivity(i);
+				}	
+			
+			}
+			else if((getIntent().getStringExtra("ID").equals("2")))
+			{
+		
+				ch1=fscode.getText().toString();
+				for(int i=(ch1.length()-1);i>=0;i--)
+					{
+						if(ch1.charAt(i)!=' ')
+						{
+							code1+=String.valueOf(ch1.charAt(i));
+						}
+						else
+						{
+							break;
+						}
+					}
+					for(int i=(code1.length()-1);i>=0;i--)
+				{
+					edin1+=code1.charAt(i);
+				}
+			
+		
+			//for to station
+				ch2=tscode.getText().toString();
+				for(int i=(ch2.length()-1);i>=0;i--)
+				{
+					if(ch2.charAt(i)!=' ')
+					{
+						code2+=String.valueOf(ch2.charAt(i));
+					}
+					else
+					{break;}
+				}
+				for(int i=(code2.length()-1);i>=0;i--)
+				{
+				edin2+=code2.charAt(i);
+				}
+				myDate=dAtE.getText().toString();
+			
+				Intent i=new Intent(getApplicationContext(), DisplayScreen.class);
+				i.putExtra("counter","4");
+				i.putExtra("edin1", edin1.toUpperCase());
+				i.putExtra("edin2", edin2.toUpperCase());
+				i.putExtra("mydate", myDate);
+				startActivity(i);
+			
+			}
+				
+			else
+			{
+				Toast.makeText(getApplicationContext(), "Invalid Input", Toast.LENGTH_SHORT).show();
+			}
+		}
+		else
+		{
+			Toast.makeText(getApplicationContext(), "No Internet Connection", Toast.LENGTH_SHORT).show();
+		}
+			
+	}
+	@Override
+	public void onItemSelected(AdapterView<?> arg0, View arg1, int arg2,long arg3) 
+	{
+		if(arg2!=0)
+		{
+			validatecheck=true;
+			if(arg0.getId()==R.id.spinner1)//class
+			{
+				c1=cLaSs[arg2];
+				//Toast.makeText(getApplicationContext(),c1, Toast.LENGTH_LONG).show();
+			}
+			if(arg0.getId()==R.id.spinner2)//quota
+			{
+				for(int i=0;i<qUoTa[arg2].length();i++)
+				{
+					if(qUoTa[arg2].charAt(i)=='-')
+					{break;}
+					q1+=qUoTa[arg2].charAt(i);
+				}
+				
+				//Toast.makeText(getApplicationContext(),q1, Toast.LENGTH_LONG).show();
+			}
+		
+		}
+		else if(arg2==0)
+		{
+			validatecheck=false;
+		}
+	}
+	@Override
+	public void onNothingSelected(AdapterView<?> arg0) 
+	{
+		validatecheck=false;// TODO Auto-generated method stub
+		
+	}
+
+}
